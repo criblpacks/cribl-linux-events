@@ -1,0 +1,123 @@
+output: default
+groups:
+  8iELPk:
+    name: Metric Processing Group
+    index: 3
+asyncFuncTimeout: 1000
+functions:
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: >-
+        Description:  This pipeline reduces linux scripted events sent from
+        Splunk_TA_nix
+
+        Author:       Alex "asc-me" Cain - acain@cribl.io
+
+        Date:         2021-11-19
+
+        Note:         Come find me on Slack - https://cribl.io/community - cribl-community.slack.com
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: Please enable Descriptions - (Select top left three bars)
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: The Metric Processing Group cleans up the Splunk TA for Nix metrics by
+        restructuring the metric data as a json structure before converting it
+        to a metric, all fields on the event are set as dimensions of the
+        metrics
+  - id: eval
+    filter: "true"
+    disabled: null
+    conf:
+      add:
+        - name: __a_start
+          value: Date.now()
+      remove:
+        - punct
+    groupId: 8iELPk
+    description: start a timer
+  - id: rename
+    filter: "true"
+    disabled: false
+    conf:
+      wildcardDepth: 5
+      renameExpr: name.replace(/metric_name:.+\./, 'm_')
+      rename: []
+    groupId: 8iELPk
+    description: unstack metric names
+  - id: serialize
+    filter: "true"
+    disabled: false
+    conf:
+      type: json
+      dstField: metric
+      fields:
+        - m_*
+      cleanFields: false
+    groupId: 8iELPk
+    description: restack metric values as json
+  - id: eval
+    filter: "true"
+    disabled: false
+    conf:
+      add:
+        - name: metric
+          value: JSON.parse(metric)
+      remove:
+        - m_*
+    groupId: 8iELPk
+    description: parse metrics into json object and remove extracted fields
+  - id: rename
+    filter: "true"
+    disabled: false
+    conf:
+      wildcardDepth: 5
+      renameExpr: name.replace(/m_/, '')
+      baseFields:
+        - metric
+    groupId: 8iELPk
+    description: clean up the metric json names
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: "if you want to append metadata to the metrics as dimensions, add any
+        lookups before the publish metrics function. any field that does not
+        start with an underscore will be added as a dimension. "
+  - id: publish_metrics
+    filter: "true"
+    disabled: false
+    conf:
+      overwrite: true
+      dimensions:
+        - "!_*"
+        - "*"
+      removeMetrics: []
+      removeDimensions: []
+      fields:
+        - metricType: gauge
+          inFieldName: metric
+          outFieldExpr: null
+  - id: eval
+    filter: "true"
+    disabled: false
+    conf:
+      add:
+        - name: __a_end
+          value: Date.now()
+        - name: __a_duration
+          value: __a_end - __a_start
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: the eval functions at the beginning and end of this pipeline are for
+        measuring event processing time in the pipeline. to view, enable "show
+        internal fields" on the sample, __a_start, __a_end, and __a_duration
+        tell you when the event entered, exited, and the duration in the pipe.

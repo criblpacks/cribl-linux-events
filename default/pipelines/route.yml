@@ -1,0 +1,48 @@
+id: default
+groups: {}
+routes:
+  - id: Yrbna3
+    name: Linux Filesystem Logs
+    final: true
+    disabled: false
+    pipeline: linux_filesystem_logs
+    description: ""
+    clones: []
+    enableOutputExpression: false
+    outputExpression: null
+    filter: source.indexOf('.log')
+    output: default
+  - id: farIrS
+    name: "[SPLUNK-TA-NIX] Linux Events"
+    final: true
+    disabled: false
+    pipeline: linux_scripted_event_inputs
+    description: if you are using the Splunk Addon for *nix, use this route and pipeline
+    clones: []
+    enableOutputExpression: false
+    outputExpression: null
+    filter: /^(iostat|vmstat|netstat|top|ps|cpu|bandwidth|interfaces|hardware|time|who|df|lastlog|usersWith.+|Unix:.+|Linux:.+)/.test(sourcetype)
+      && !sourcetype.match(/.+_metric/)
+    output: default
+  - id: U63cka
+    name: "[SPLUNK-TA-NIX] Linux Metrics"
+    final: true
+    disabled: false
+    pipeline: linux_scripted_metric_inputs
+    description: if you are using the Splunk Addon for *nix, use this route and pipeline
+    clones: []
+    enableOutputExpression: false
+    outputExpression: null
+    filter: /^(cpu|ps|df|vmstat|iostat|interfaces|)_metric/.test(sourcetype)
+    output: default
+  - id: default
+    name: default
+    final: true
+    disabled: false
+    pipeline: main
+    description: ""
+    clones: []
+    enableOutputExpression: false
+    outputExpression: null
+    filter: "true"
+    output: default

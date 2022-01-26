@@ -1,0 +1,115 @@
+Q0EdlQ:
+  sampleName: 10 - Unix_Service events.log.json
+  created: 1635368008599
+  size: 6302
+  numEvents: 10
+dO8Yru:
+  sampleName: 10 - vmstat events.log.json
+  created: 1636488348043
+  size: 6841
+  numEvents: 10
+8dAhF6:
+  sampleName: 10 - top events.log.json
+  created: 1636488388782
+  size: 210525
+  numEvents: 10
+1Fr0Iy:
+  sampleName: 10 - rlog events.log.json
+  created: 1636488418716
+  size: 3027
+  numEvents: 10
+UcUFmB:
+  sampleName: 10 - bandwidth events.log.json
+  created: 1636488444960
+  size: 2941
+  numEvents: 10
+SRQdXj:
+  sampleName: 10 - iostat events.log.json
+  created: 1636488525717
+  size: 8641
+  numEvents: 10
+rxSK4T:
+  sampleName: 10 - cpu events.log.json
+  created: 1636488564923
+  size: 7051
+  numEvents: 10
+Me7DUM:
+  sampleName: 10 - uptime events.log.json
+  created: 1636488586083
+  size: 4181
+  numEvents: 10
+w6Hfkp:
+  sampleName: 10 - who events.log.json
+  created: 1636488604640
+  size: 3891
+  numEvents: 10
+sy5fhe:
+  sampleName: 10 - version events.log.json
+  created: 1636488626095
+  size: 6291
+  numEvents: 10
+qbYKkh:
+  sampleName: 10 - update events.log.json
+  created: 1636488640506
+  size: 4626
+  numEvents: 10
+x14S2N:
+  sampleName: 5 - userLoginPrivs events.log.json
+  created: 1636488658552
+  size: 3786
+  numEvents: 5
+p2vNIm:
+  sampleName: 10 - SELinuxConfig events.log.json
+  created: 1636488671250
+  size: 5486
+  numEvents: 10
+ZaTYET:
+  sampleName: 5 - netstat events.log.json
+  created: 1636488685329
+  size: 27388
+  numEvents: 5
+O8QMZE:
+  sampleName: 5 - df events.log.json
+  created: 1636488698710
+  size: 2931
+  numEvents: 5
+Vq0VJ9:
+  sampleName: 5 - time events.log.json
+  created: 1636488715202
+  size: 3831
+  numEvents: 5
+nIC47y:
+  sampleName: 10 - Unix Service events.log.json
+  created: 1636488737455
+  size: 6192
+  numEvents: 10
+INnz9s:
+  sampleName: 5 - hardware events.log.json
+  created: 1636488755092
+  size: 2856
+  numEvents: 5
+5bQBUq:
+  sampleName: 5 - interfaces events.log.json
+  created: 1636488779426
+  size: 3526
+  numEvents: 5
+P5sZqH:
+  sampleName: 10 - lastlog events.log.json
+  created: 1636488887913
+  size: 3871
+  numEvents: 10
+kuINvh:
+  sampleName: 10 - ps events.log.json
+  created: 1636488910433
+  size: 257352
+  numEvents: 5
+L0W0yL:
+  sampleName: 100 - var monitor (dnf,hawkey,tuned,kdump).log.json
+  created: 1636488938267
+  size: 47760
+  numEvents: 100
+EqygHl:
+  sampleName: botsv3-trimmed-sample.txt
+  created: 1643214107200
+  size: 422358
+  numEvents: 2294

@@ -1,0 +1,1111 @@
+output: default
+groups:
+  43xFAj:
+    name: Event Processing Group
+    index: 3
+    description: applies to all events
+    disabled: false
+  EpgNVB:
+    name: ps
+    index: 5
+    description: source=='ps'
+    disabled: false
+  ojU0tM:
+    name: top
+    index: 6
+    disabled: false
+    description: source=='top'
+  JCNf0q:
+    name: cpu
+    description: source=='cpu'
+    index: 7
+  JCG6LM:
+    name: lsof
+    description: source=='lsof'
+    disabled: false
+    index: 8
+  j7b1ib:
+    name: df
+    description: source=='df'
+    index: 9
+  dpBNaZ:
+    name: vmstat
+    description: source=='vmstat'
+    index: 10
+  36k7r6:
+    name: netstat
+    description: source=='netstat'
+    index: 11
+    disabled: false
+  reJogH:
+    name: hardware
+    description: source=='hardware'
+    disabled: false
+    index: 12
+  t6uYrN:
+    name: interfaces
+    description: source=='interfaces'
+    index: 13
+  UnR9Gf:
+    name: usersWithLoginPrivs
+    description: source=='usersWithLoginPrivs'
+    index: 14
+  sXFH4z:
+    name: lastlog
+    description: source=='lastlog'
+    index: 15
+  GPgS8r:
+    name: time
+    description: source=='time'
+    index: 16
+  npr94q:
+    name: Unix:* & Linux:*
+    description: /Unix:/.test(source) && /Linux:/.test(source)
+    index: 17
+  NKcGwt:
+    name: Post Processing Group - JSON
+    description: applies to all events
+    index: 19
+    disabled: false
+asyncFuncTimeout: 1000
+functions:
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: >-
+        Description:  This pipeline reduces linux scripted events sent from
+        Splunk_TA_nix
+
+        Author:       Alex "asc-me" Cain - acain@cribl.io
+
+        Date:         2021-10-31
+
+        Note:         Come find me on Slack - https://cribl.io/community - cribl-community.slack.com
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: Please enable Descriptions - (Select top left three bars)
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: The Event Processing Group turns the _raw multi-line events into
+        single-line events
+  - id: eval
+    filter: "true"
+    disabled: false
+    conf:
+      add:
+        - name: __a_start
+          value: Date.now()
+    groupId: 43xFAj
+  - id: regex_extract
+    filter: source=='time'
+    disabled: false
+    conf:
+      source: _raw
+      iterations: 100
+      overwrite: false
+      regex: /\n(?<_header>MS\s[\s\w\/]+)\n/
+      regexList:
+        - regex: /=+\n(?<events>[\\n\*\w\d\s\/\+\-\.\^\[\]]+)/
+    groupId: 43xFAj
+  - id: regex_extract
+    filter: source!='hardware' && source.indexOf('Unix:') == -1 &&
+      source!='Linux:SELinuxConfig' && source!='time'
+    disabled: false
+    conf:
+      source: _raw
+      iterations: 100
+      overwrite: false
+      regex: /^\s*(?<_header>[\w\s\-]+)\n/
+    groupId: 43xFAj
+    description: ^\s*(?<_header>[\w\s\-]+)\\n
+  - id: eval
+    filter: source=='time'
+    disabled: false
+    conf:
+      add:
+        - name: _raw
+          value: events
+        - name: _header
+          value: _header.replace(/\/IP\saddress/g,'')
+        - value: _header.replace(/Last\ssample/g,'Last_Sample')
+          name: _header
+        - name: _raw
+          value: _raw.replace(/\[\s*/g,',[')
+        - name: _raw
+          value: _raw.replace(/\]\s+/g,'],')
+        - name: _raw
+          value: _raw.replace(/\-\s+/g,'-')
+      remove:
+        - events
+    groupId: 43xFAj
+  - id: eval
+    filter: source!='hardware' && source.indexOf('Unix:') == -1 &&
+      source!='Linux:SELinuxConfig'
+    disabled: false
+    conf:
+      add:
+        - name: _header
+          value: _header.replace(/-/g,'')
+        - value: _header.trim().split(/\s+/)
+          name: _header
+    groupId: 43xFAj
+    description: clean and split _header
+  - id: unroll
+    filter: source!='hardware' && source.indexOf('Unix:') == -1 &&
+      source!='Linux:SELinuxConfig'
+    disabled: false
+    conf:
+      srcExpr: _raw.split(/\n/)
+      dstField: _raw
+    description: split log into events on "\n"
+    groupId: 43xFAj
+  - id: drop
+    filter: /^(\s+IPdropped|USER|USERNAME|\s+PID|Name|Filesystem|Proto|CPU|COMMAND|memTotalMB)/.test(_raw)
+      || _raw.length=='0'
+    disabled: false
+    conf: {}
+    groupId: 43xFAj
+    description: remove headers and empty events
+  - id: eval
+    filter: source!='hardware' && source.indexOf('Unix:') == -1 &&
+      source!='Linux:SELinuxConfig'
+    disabled: false
+    conf:
+      add:
+        - name: _raw
+          value: _raw.trim().split(/\s+/)
+        - value: C.Misc.zip(_header,_raw,__e)
+          name: ""
+      remove:
+        - _header
+      keep: []
+    groupId: 43xFAj
+    description: clean up _raw and match with header
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: "processes, aggregates, and converts to json "
+  - id: comment
+    filter: "true"
+    disabled: false
+    conf:
+      comment: >
+        data size reduction: (on 10 events / 5 minutes)
+
+        ~24% raw event reduction, ~25% full event reduction, multiple event reduction
+    groupId: EpgNVB
+  - id: comment
+    filter: "true"
+    disabled: false
+    conf:
+      comment: >-
+        Below is a description of all the fields in a PS event:
+
+        USER    - Username of the process's owner
+
+        PID     - Process ID number
+
+        PSR     - processor that the process is currently assigned to
+
+        pctCPU  - How much CPU the process is using
+
+        CPUTIME - Total CPU time used by the process since it started
+
+        pctMEM  - How much memory the process is using, as a percentage of the total RAM available
+
+        RSZ_KB  - Real memory usage, in KB
+
+        VSZ_KB  - Virtual memory usage, in KB
+
+        TTY     - Terminal associated with the process
+
+        S       - Process status code
+
+        ELAPSED - Time since the process started
+
+        COMMAND - Name of the process
+
+        ARGS    - Process's arguments or flags, if any
+    groupId: EpgNVB
+  - id: eval
+    filter: source=='ps' && TTY=='?'
+    disabled: false
+    conf:
+      remove:
+        - TTY
+    groupId: EpgNVB
+    description: remove TTY field when value is "?"
+  - id: eval
+    filter: source=='ps' && ARGS=='<noArgs>'
+    disabled: false
+    conf:
+      remove:
+        - ARGS
+    groupId: EpgNVB
+    description: remove ARGS field when value is "<noArgs>"
+  - id: serialize
+    filter: source=='ps'
+    disabled: false
+    conf:
+      type: json
+      dstField: _raw
+      fields:
+        - "!_time*"
+        - "!host"
+        - "!index"
+        - "!source*"
+        - "!cribl*"
+        - "!_raw*"
+        - "!__*"
+        - "!punct"
+        - "!time*"
+        - "*"
+    groupId: EpgNVB
+    description: rebuild the _raw field with extracted values
+  - id: eval
+    filter: source=='ps'
+    disabled: false
+    conf:
+      add:
+        - name: _raw
+          value: JSON.parse(_raw)
+    groupId: EpgNVB
+  - id: aggregation
+    filter: source=='ps'
+    disabled: false
+    conf:
+      passthrough: false
+      preserveGroupBys: false
+      sufficientStatsOnly: false
+      metricsMode: false
+      timeWindow: 15s
+      aggregations:
+        - list(_raw,0).as(_raw)
+      cumulative: false
+      flushOnInputClose: true
+      add:
+        - name: sourcetype
+          value: "'ps:json'"
+      groupbys:
+        - host
+        - source
+        - index
+    groupId: EpgNVB
+    description: collapse expanded events back down as a json object
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: >-
+        data size reduction: (on 10 events / 5 minutes)
+
+        with aggregation enabled: ~61% raw event reduction, ~27% full event reduction
+
+        with aggregation disabled: ~53% raw event increase, ~200% full event increase
+    groupId: ojU0tM
+  - id: comment
+    filter: "true"
+    disabled: false
+    conf:
+      comment: >-
+        Below is a description of all the fields in a TOP event:
+
+        PID     - Process ID number
+
+        USER    - Username of the process's owner
+
+        PR      - the process's scheduled priority
+
+        NI      - the "nice" value of a process
+
+        VIRT    - total amount of memory consumed by a process
+
+        RES     - total memory consumed by the process in RAM
+
+        SHR     - amount of memory shared with other processes
+
+        S       - Process status code
+
+        pctCPU  - how much CPU the process is using, as a percentage of the total CPU available
+
+        pctMEM  - how much memory the process is using, as a percentage of the total RAM availablecpu
+
+        cpuTIME - total CPU time used by the process since it started
+
+        COMMAND - Name of the process
+    groupId: ojU0tM
+  - id: comment
+    filter: "true"
+    disabled: false
+    conf:
+      comment: "OPTIONAL: disable agg function below to send all events instead of 5m
+        roll-ups"
+    groupId: ojU0tM
+  - id: serialize
+    filter: source=='top'
+    disabled: false
+    conf:
+      type: json
+      dstField: _raw
+      fields:
+        - "!_time*"
+        - "!host"
+        - "!index"
+        - "!source*"
+        - "!cribl*"
+        - "!_raw*"
+        - "!__*"
+        - "!punct"
+        - "!time*"
+        - "*"
+    groupId: ojU0tM
+  - id: eval
+    filter: source=='top'
+    disabled: null
+    conf:
+      add:
+        - name: _raw
+          value: JSON.parse(_raw)
+    groupId: ojU0tM
+  - id: aggregation
+    filter: source=='top'
+    disabled: true
+    conf:
+      passthrough: false
+      preserveGroupBys: false
+      sufficientStatsOnly: false
+      metricsMode: false
+      timeWindow: 15s
+      aggregations:
+        - list(_raw).as(_raw)
+      cumulative: false
+      flushOnInputClose: true
+      add:
+        - name: sourcetype
+          value: "'top:json'"
+      groupbys:
+        - host
+        - source
+        - index
+    groupId: ojU0tM
+  - id: aggregation
+    filter: source=='top'
+    disabled: true
+    conf:
+      passthrough: false
+      preserveGroupBys: false
+      sufficientStatsOnly: false
+      metricsMode: false
+      timeWindow: 300s
+      aggregations:
+        - max('pctCPU').as('MAX_CPU')
+        - max('pctMEM').as('MAX_MEM')
+        - latest('cpuTIME').as('CPUTIME')
+        - values('NI').as('NICE')
+        - values('S').as('S_CODES')
+        - avg('SHR').as('AVG_SHR')
+      cumulative: false
+      flushOnInputClose: true
+      groupbys:
+        - COMMAND
+        - USER
+        - PID
+        - host
+        - index
+        - source
+        - sourcetype
+      add:
+        - name: sourcetype
+          value: "'top_metric'"
+    groupId: ojU0tM
+    description: agg events over 5m
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: |-
+        data size reduction: (on 10 events / 5 minutes)
+        ~82% raw event increase, ~61% full event increase
+    groupId: JCNf0q
+  - id: comment
+    filter: "true"
+    disabled: false
+    conf:
+      comment: |-
+        Below is a description of all the fields in the event:
+        CPU       - which cpu core is reporting or a summery of all
+        pctUser   - total CPU time spent by the user
+        pctNice   - total CPU time spent by NICE process
+        cpuSystem - total CPU time spent by the system
+        cpuIowait - total CPU time spent in IO ops wait
+        cpuIdle   - total CPU time spent in IDLE state
+    groupId: JCNf0q
+  - id: numerify
+    filter: source=='cpu'
+    disabled: null
+    conf:
+      format: none
+      ignoreFields: []
+      filterExpr: ""
+      digits: .nan
+    groupId: JCNf0q
+  - id: drop
+    filter: source=='cpu' && CPU!='all' && pctIdle>=30
+    disabled: null
+    conf: {}
+    groupId: JCNf0q
+    description: drop individual CPU reports with idle >30%
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: >-
+        data size reduction: (on 5 events / 5 minutes)
+
+        with aggregation enabled: ~99% raw event reduction, ~99% full event reduction
+
+        with aggregation disabled: ~46% raw event increase, ~170% full event increase
+    groupId: JCG6LM
+  - id: comment
+    filter: "true"
+    disabled: false
+    conf:
+      comment: |
+        Below is a description of all the fields in a LSOF event:
+        COMMAND - Name of the process
+        PID     - Process ID number
+        USER    - Username of the process's owner
+        FD      - file descriptor number of the file
+        TYPE    - type of node associated with the file
+        DEVICE  - device numbers, separated by commas for the given file
+        SIZE    - size in bytes for the given file
+        NODE    - node number for the given file
+        NAME    - name of the mount point and filesystem where the file resides
+    groupId: JCG6LM
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: "WARNING: lsof events are incredibly large, please be aware that they
+        can take a significant amount or resources and time to process. if
+        possible consider dropping all lsof events instead."
+    groupId: JCG6LM
+  - id: eval
+    filter: source=='lsof' && USER.match(/\d+/)
+    disabled: null
+    conf:
+      add:
+        - name: SUB_PID
+          value: USER
+        - name: SUB_CMD
+          value: FD
+        - name: USER
+          value: TYPE
+        - name: FD
+          value: DEVICE
+        - name: TYPE
+          value: SIZE
+        - name: DEVICE
+          value: NODE
+        - name: SIZE
+          value: NAME
+        - name: NODE
+          value: '"MISSING_DATA"'
+        - name: NAME
+          value: '"MISSING_DATA"'
+    groupId: JCG6LM
+    description: fix broken data structure
+  - id: comment
+    filter: "true"
+    disabled: false
+    conf:
+      comment: "OPTIONAL: disable agg function below to send all events instead of 5m
+        roll-ups"
+    groupId: JCG6LM
+  - id: aggregation
+    filter: source=='lsof'
+    disabled: false
+    conf:
+      passthrough: false
+      preserveGroupBys: false
+      sufficientStatsOnly: false
+      metricsMode: false
+      timeWindow: 300s
+      aggregations:
+        - sum('SIZE').as('TOTAL_BYTES')
+        - count('SUB_PID').as('SUB_PID_FILES')
+        - values('NAME').as('NAMES')
+        - values('FD').as('FD')
+        - values('SUB_PID').as('SUB_PIDS')
+        - values('TYPE').as('TYPES')
+        - distinct_count('NAME').as('UNIQUE_FILES')
+        - distinct_count('DEVICE').as('UNIQUE_DEVICES')
+        - max(start).as('max_start')
+      cumulative: false
+      flushOnInputClose: true
+      groupbys:
+        - COMMAND
+        - USER
+        - PID
+        - host
+        - index
+        - source
+        - sourcetype
+      add:
+        - name: sourcetype
+          value: "'lsof_metric'"
+        - name: start
+          value: max_start
+    groupId: JCG6LM
+    description: agg events over 5m
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: >
+        data size reduction: (on 5 events / 5 minutes)
+
+        with aggregation enabled: ~62% raw event reduction, ~53% full event reduction (5 events / 5 minutes)
+
+        with aggregation disabled: ~34% raw event reduction, ~2% full event reduction
+    groupId: j7b1ib
+  - id: comment
+    filter: "true"
+    disabled: false
+    conf:
+      comment: >
+        OPTIONAL: disable agg function below to send all events instead of 5m
+        roll-ups
+    groupId: j7b1ib
+  - id: aggregation
+    filter: source=='df'
+    disabled: null
+    conf:
+      passthrough: false
+      preserveGroupBys: false
+      sufficientStatsOnly: false
+      metricsMode: false
+      timeWindow: 300s
+      aggregations:
+        - last('Size')
+        - last('Avail')
+        - last('Used')
+        - last('UsePct')
+      cumulative: false
+      flushOnInputClose: true
+      groupbys:
+        - MountedOn
+        - host
+        - index
+        - source
+        - sourcetype
+        - Filesystem
+    groupId: j7b1ib
+    description: agg events over 5m
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: >
+        data size reduction: (on 10 events / 5 minutes)
+
+        with aggregation enabled: ~90% raw event reduction, ~88% full event reduction
+
+        with aggregation disabled: ~19% raw event reduction, ~19% full event reduction
+    groupId: dpBNaZ
+  - id: comment
+    filter: "true"
+    disabled: false
+    conf:
+      comment: >
+        OPTIONAL: disable agg function below to send all events instead of 5m
+        roll-ups
+    groupId: dpBNaZ
+  - id: aggregation
+    filter: source=='vmstat'
+    disabled: false
+    conf:
+      passthrough: false
+      preserveGroupBys: false
+      sufficientStatsOnly: false
+      metricsMode: false
+      timeWindow: 300s
+      aggregations:
+        - avg(memUsedPct)
+        - max(memUsedPct)
+        - avg(sawpUsedPct)
+        - max(sawpUsedPct)
+        - avg(threads)
+        - avg(waitThreads)
+        - avg(processes)
+        - avg(interupts)
+        - avg(loadAvglmi)
+        - avg(forks)
+      cumulative: false
+      flushOnInputClose: true
+      groupbys:
+        - host
+        - index
+        - source
+      add:
+        - name: sourcetype
+          value: "'vmstat:metric'"
+    groupId: dpBNaZ
+    description: agg events over 5m
+  - id: comment
+    filter: "true"
+    disabled: false
+    conf:
+      comment: >
+        data size reduction: (on 5 events / 5 minutes)
+
+        with aggregation enabled: ~62% raw event reduction, ~53% full event reduction
+
+        with aggregation disabled: ~52% raw event reduction, ~17% full event reduction
+    groupId: 36k7r6
+  - id: drop
+    filter: State=='<n/a>'
+    disabled: false
+    conf: {}
+    groupId: 36k7r6
+    description: drop events that have no state
+  - id: drop
+    filter: "ForeignAddress.match(/0.0.0.0/) || ForeignAddress.match(/127.0.0.1/) "
+    disabled: false
+    conf: {}
+    groupId: 36k7r6
+    description: drop events from foreign address '0.0.0.0', [::], *:*, or loopback
+  - id: drop
+    filter: ForeignAddress.match(/\[::\]/) || ForeignAddress.match(/\*:\*/)
+    disabled: false
+    conf: {}
+    groupId: 36k7r6
+  - id: drop
+    filter: RecvQ=='0' && SendQ=='0'
+    disabled: false
+    conf: {}
+    groupId: 36k7r6
+    description: drop events where nothing has been sent or received
+  - id: comment
+    filter: "true"
+    disabled: false
+    conf:
+      comment: >
+        OPTIONAL: disable agg function below to send all events instead of 5m
+        roll-ups
+    groupId: 36k7r6
+  - id: aggregation
+    filter: source=='netstat'
+    disabled: false
+    conf:
+      passthrough: false
+      preserveGroupBys: false
+      sufficientStatsOnly: false
+      metricsMode: false
+      timeWindow: 300s
+      aggregations:
+        - values('ForeignAddress')
+        - values('Proto')
+        - sum('RecvQ')
+        - sum('SendQ')
+      cumulative: false
+      flushOnInputClose: true
+      groupbys:
+        - host
+        - index
+        - source
+        - sourcetype
+        - LocalAddress
+        - State
+    groupId: 36k7r6
+    description: agg events over 5m
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: |
+        data size reduction: (on 5 events)
+        ~29% raw event reduction, ~26% full event reduction
+    groupId: reJogH
+  - id: comment
+    filter: "true"
+    disabled: false
+    conf:
+      comment: "Hardware events have a different structure that most of the other
+        splunk scripted inputs and requires us to extract the values
+        differently. "
+    groupId: reJogH
+  - id: eval
+    filter: source=='hardware'
+    disabled: false
+    conf:
+      add:
+        - name: _raw
+          value: _raw.replace(/\s\s+/g,'=')
+      remove: []
+    groupId: reJogH
+  - id: serde
+    filter: source=='hardware'
+    disabled: null
+    conf:
+      mode: extract
+      type: kvp
+      srcField: _raw
+      cleanFields: false
+      delimChar: \t
+      quoteChar: '"'
+      escapeChar: \
+      nullValue: "-"
+      remove:
+        - KEY
+    groupId: reJogH
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: |
+        data size reduction: (on 5 events)
+        ~41% raw event reduction, ~34% full event reduction
+    groupId: t6uYrN
+  - id: comment
+    filter: "true"
+    disabled: false
+    conf:
+      comment: |
+        no extra processing is needed for the this data.
+    groupId: t6uYrN
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: |
+        data size reduction: (on 5 events)
+        ~66% raw event reduction, ~25% full event reduction
+    groupId: UnR9Gf
+  - id: comment
+    filter: "true"
+    disabled: false
+    conf:
+      comment: |
+        no extra processing is needed for this data.
+    groupId: UnR9Gf
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: |
+        data size reduction: (on 10 events)
+        ~63% raw event reduction, ~38% full event reduction
+    groupId: sXFH4z
+  - id: comment
+    filter: "true"
+    disabled: false
+    conf:
+      comment: |
+        no extra processing is needed for this data.
+    groupId: sXFH4z
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: >
+        data size reduction: (on 5 events / 5 minutes)
+
+        with drops enabled: ~>99% raw event reduction, ~>99% full event reduction
+
+        with aggregation enabled: ~85% raw event reduction, ~79% full event reduction
+
+        with aggregation disabled: ~141% raw event increase, ~169% full event increase
+    groupId: GPgS8r
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: >-
+        Below is a description of all the fields in a this event:
+
+        Name    - NTP server
+
+        Stratum - how many hops away from a computer with an attached reference clock
+
+        Reach   - source’s reachability register printed as an octal number
+
+        Sample  - offset between the local clock and the source at the last measurement
+
+        Poll    - rate at which the source is being polled
+
+        Last    - offset between the local clock and the source at the last measurement
+
+        LastRx  - how long ago the last good sample was
+
+        MS      - indicates the mode (M) and selection state (S) of the source
+    groupId: GPgS8r
+  - id: regex_extract
+    filter: source=='time'
+    disabled: null
+    conf:
+      source: Last_Sample
+      iterations: 100
+      overwrite: false
+      regex: /^(?<adj_skew>[\d\+\-]+)(?<adj_skew_unit>[\w]+),\[(?<act_skew>[\d\+\-]+)(?<act_skew_unit>[\w]+)\],\+\/\-(?<err_margin>[\d]+)(?<err_margin_unit>[\w]+)/
+    groupId: GPgS8r
+    description: break apart last_sample field
+  - id: drop
+    filter: source=='time' && /.(x|X|~|\?)/.test(MS)
+    disabled: null
+    conf: {}
+    groupId: GPgS8r
+    description: drop any events that chrony considers unreliable
+  - id: numerify
+    filter: source=='time'
+    disabled: null
+    conf:
+      format: none
+      ignoreFields: []
+      filterExpr: ""
+      digits: .nan
+    groupId: GPgS8r
+  - id: eval
+    filter: source=='time'
+    disabled: false
+    conf:
+      add:
+        - name: act_skew_sec
+          value: "act_skew_unit=='ns' ? act_skew / 1e+9 : act_skew_sec"
+        - value: "act_skew_unit=='us' ? act_skew / 1e+6 : act_skew_sec"
+          name: act_skew_sec
+        - value: "act_skew_unit=='ms' ? act_skew / 1e+3 : act_skew_sec"
+          name: act_skew_sec
+        - name: adj_skew_sec
+          value: "adj_skew_unit=='ns' ? adj_skew / 1e+9 : adj_skew_sec"
+        - value: "adj_skew_unit=='us' ? adj_skew / 1e+6 : adj_skew_sec"
+          name: adj_skew_sec
+        - name: adj_skew_sec
+          value: "adj_skew_unit=='ms' ? act_skew / 1e+3 : adj_skew_sec"
+        - value: "err_margin_unit=='ns' ? err_margin / 1e+9 : err_margin_sec"
+          name: err_margin_sec
+        - value: "err_margin_unit=='us' ? err_margin / 1e+6 : err_margin_sec"
+          name: err_margin_sec
+        - value: "err_margin_unit=='ms' ? err_margin / 1e+3 : err_margin_sec"
+          name: err_margin_sec
+    groupId: GPgS8r
+    description: convert skews to seconds
+  - id: comment
+    filter: "true"
+    disabled: false
+    conf:
+      comment: >
+        OPTIONAL: disable drop function below to send all events instead of
+        dropping events where skew +/- margin-of-error, crosses over 0
+    groupId: GPgS8r
+  - id: drop
+    filter: source=='time' && adj_skew_sec+err_margin_sec>='0' &&
+      adj_skew_sec-err_margin_sec<='0'
+    disabled: false
+    conf: {}
+    groupId: GPgS8r
+    final: false
+    description: drop any result where skew +/- margin-of-error crosses absolute 0
+  - id: comment
+    filter: "true"
+    disabled: false
+    conf:
+      comment: >
+        OPTIONAL: disable agg function below to send all events instead of 30s
+        roll-ups
+    groupId: GPgS8r
+  - id: aggregation
+    filter: source=='time'
+    disabled: true
+    conf:
+      passthrough: false
+      preserveGroupBys: false
+      sufficientStatsOnly: false
+      metricsMode: false
+      timeWindow: 300s
+      aggregations:
+        - avg(Stratum).as('Hops')
+        - avg(adj_skew_sec)
+        - max(adj_skew_sec)
+        - min(adj_skew_sec)
+        - avg(err_margin_sec)
+        - count(Name).as('num_ntp_srv')
+      cumulative: false
+      flushOnInputClose: true
+      groupbys:
+        - host
+        - index
+        - source
+      add:
+        - name: sourcetype
+          value: "'time:metric'"
+    groupId: GPgS8r
+    description: agg events over 5m
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: |-
+        [Unix:Service]
+        data size reduction: (on 10 events)
+        ~33% raw event reduction, ~47% full event reduction
+
+        [Unix:Version]
+        data size reduction: (on 10 events)
+        ~13% raw event reduction, ~41% full event reduction
+
+        [Unix:Update]
+        data size reduction: (on 10 events / 30 minutes)
+        ~84% raw event reduction, ~93% full event reduction
+
+        [Unix:Uptime]
+        data size reduction: (on 10 events)
+        ~51% raw event reduction, ~50% full event reduction
+
+        [Linux:SELinuxConfig]
+        data size reduction: (on 10 events)
+        ~8% raw event reduction, ~37% full event reduction
+    groupId: npr94q
+  - id: comment
+    filter: "true"
+    disabled: false
+    conf:
+      comment: "Unix:Service events have a different structure that most of the other
+        splunk scripted inputs and requires us to extract the values
+        differently. "
+    groupId: npr94q
+  - id: serde
+    filter: "source.indexOf('Unix:') >= 0 || source.indexOf('Linux:') >= 0 "
+    disabled: false
+    conf:
+      mode: extract
+      type: kvp
+      srcField: _raw
+      cleanFields: false
+      delimChar: \t
+      quoteChar: '"'
+      escapeChar: \
+      nullValue: "-"
+      remove: []
+    groupId: npr94q
+  - id: eval
+    filter: "source.indexOf('Unix:') >= 0 || source.indexOf('Linux:') >= 0 "
+    disabled: false
+    conf:
+      remove:
+        - date_*
+        - timestartpos
+        - timeendpos
+    groupId: npr94q
+    description: remove extracted date fields
+  - id: eval
+    filter: source.indexOf('Unix:Service') >= 0
+    disabled: false
+    conf:
+      add:
+        - name: DESCRIPTION
+          value: DESCRIPTION.trim()
+      remove:
+        - date_*
+        - timestartpos
+        - timeendpos
+    groupId: npr94q
+    description: clean Unix:Service fields
+  - id: drop
+    filter: source.indexOf('Unix:Update') >= 0 && _raw.indexOf('package') == -1
+    disabled: false
+    conf: {}
+    groupId: npr94q
+    description: drop update event summaries
+  - id: aggregation
+    filter: source.indexOf('Unix:Update') >= 0
+    disabled: true
+    conf:
+      passthrough: false
+      preserveGroupBys: false
+      sufficientStatsOnly: false
+      metricsMode: false
+      timeWindow: 30m
+      aggregations:
+        - values(package).as('packages')
+        - distinct_count(package).as('unique_packages')
+      cumulative: false
+      flushOnInputClose: true
+      groupbys:
+        - package_type
+        - source
+        - index
+        - host
+      add:
+        - name: sourcetype
+          value: "'Update:metric'"
+    groupId: npr94q
+    description: agg updates by package_type
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: converts events to json objects and drops index-time fields
+  - id: serialize
+    filter: source!='ps'
+    disabled: false
+    conf:
+      type: json
+      dstField: _raw
+      fields:
+        - "!_*"
+        - "!host"
+        - "!cribl_*"
+        - "!source"
+        - "!sourcetype"
+        - "!punct"
+        - "!timestamp"
+        - "!index"
+        - "*"
+      cleanFields: false
+    description: reformat raw as a json string
+    groupId: NKcGwt
+  - id: eval
+    filter: source!='ps'
+    disabled: false
+    conf:
+      add:
+        - value: JSON.parse(_raw)
+          name: _raw
+    description: convert json string into json object
+    groupId: NKcGwt
+  - id: comment
+    filter: "true"
+    disabled: false
+    conf:
+      comment: Enable Drop or Keep index-time fields - (Default Drop)
+    groupId: NKcGwt
+  - id: eval
+    filter: "true"
+    disabled: false
+    conf:
+      keep:
+        - _raw*
+        - _raw
+        - source
+        - sourcetype
+        - index
+        - host
+        - cribl_breaker
+        - _time
+        - duration
+      remove:
+        - "*"
+      add:
+        - name: __a_end
+          value: Date.now()
+        - name: __a_duration
+          value: __a_end - __a_start
+    description: Drop - Extracted fields [Toggle off to retain extracted fields]
+    groupId: NKcGwt

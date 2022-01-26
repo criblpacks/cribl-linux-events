@@ -1,0 +1,103 @@
+output: default
+groups:
+  lCN5Q8:
+    name: dnf.log
+    index: 0
+  uAFA4g:
+    name: kdump.log
+    index: 1
+    disabled: false
+  YNf8vo:
+    name: tuned.log
+    index: 2
+  tTlImJ:
+    name: Post Processing Group - JSON
+    disabled: false
+    index: 3
+asyncFuncTimeout: 1000
+functions:
+  - id: regex_extract
+    filter: source.indexOf('dnf.log') >= 0
+    disabled: null
+    conf:
+      source: _raw
+      iterations: 100
+      overwrite: false
+      regex: /^[^\s]+\s+(?<log_level>\w+)\s+(?<message>.+)/
+      regexList: []
+    groupId: lCN5Q8
+  - id: regex_extract
+    filter: source.indexOf('dnf.log') >= 0 && message.indexOf(':') >= 0
+    disabled: null
+    conf:
+      source: message
+      iterations: 100
+      overwrite: true
+      regex: /(?<service>[^\:]+)\:\s+(?<message>.+)/
+    groupId: lCN5Q8
+  - id: drop
+    filter: source.indexOf('dnf.log') >= 0 && log_level.indexOf('DEBUG') >= 0
+    disabled: false
+    conf: {}
+    groupId: lCN5Q8
+  - id: regex_extract
+    filter: source.indexOf('dnf.log') >= 0
+    disabled: false
+    conf:
+      source: _raw
+      iterations: 100
+      overwrite: false
+      regex: /^[^\s]+\s+(?<log_level>\w+)\s+(?<message>.+)/
+      regexList: []
+    groupId: uAFA4g
+  - id: serde
+    filter: source.indexOf('kdump.log') >= 0
+    disabled: false
+    conf:
+      mode: extract
+      type: kvp
+      srcField: _raw
+      cleanFields: false
+    groupId: uAFA4g
+  - id: regex_extract
+    filter: source.indexOf('tuned.log') >= 0
+    disabled: null
+    conf:
+      source: _raw
+      iterations: 100
+      overwrite: false
+      regex: /^[^\,]+\,\d+\s+(?<log_level>\w+)\s+(?<service>[^\:]+)\:\s+(?<message>.+)/g
+    groupId: YNf8vo
+  - id: serialize
+    filter: "true"
+    disabled: false
+    conf:
+      type: json
+      dstField: _raw
+      fields:
+        - "!_*"
+        - "!host"
+        - "!source*"
+        - "!index"
+        - "!date*"
+        - "!time*"
+        - "!punct"
+        - "!cribl*"
+        - "*"
+    groupId: tTlImJ
+  - id: eval
+    filter: "true"
+    disabled: false
+    conf:
+      add:
+        - name: _raw
+          value: JSON.parse(_raw)
+      remove:
+        - "*"
+      keep:
+        - _raw*
+        - source*
+        - index
+        - host
+        - _time
+    groupId: tTlImJ
